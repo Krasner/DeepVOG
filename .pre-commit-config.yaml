@@ -1,0 +1,81 @@
+default_language_version:
+  python: python3
+
+repos:
+  # Pre-commit hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.2.0
+    hooks:
+      # list of supported hooks: https://pre-commit.com/hooks.html
+      - id: trailing-whitespace
+      - id: debug-statements
+      - id: detect-private-key
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: fix-encoding-pragma
+        args: ["--remove"]
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+
+  # Black (code formatting)
+  - repo: https://github.com/psf/black
+    rev: 22.3.0
+    hooks:
+      - id: black
+        args: [--line-length, "99"]
+
+  - repo: https://github.com/myint/autoflake
+    rev: v1.4
+    hooks:
+      - id: autoflake
+        args:
+          [
+            "--expand-star-imports",
+            "--ignore-init-module-imports",
+            "--in-place",
+          ]
+        exclude: docs/
+
+  # - repo: https://gitlab.com/pycqa/flake8
+  #   rev: 3.9.2
+  #   hooks:
+  #     - id: flake8
+  #       exclude: docs/
+  #       additional_dependencies:
+  #         - flake8-bugbear==20.1.4
+  #         - flake8-builtins==1.5.3
+  #         - flake8-comprehensions==3.3.0
+  #         - flake8-return==1.1.2
+  #         - flake8-simplify==0.14.0
+
+  # Flynt (f-string formatting)
+  - repo: https://github.com/ikamensh/flynt/
+    rev: "0.63"
+    hooks:
+      - id: flynt
+
+  # Strip output from IPython Notebooks
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.4.0
+    hooks:
+      - id: nbstripout
+        files: ".ipynb"
+
+  # Isort (import sorting)
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.11.5
+    hooks:
+      - id: isort
+        # profiles: https://pycqa.github.io/isort/docs/configuration/profiles/
+        # other flags: https://pycqa.github.io/isort/docs/configuration/options/
+        args:
+          [
+            --profile,
+            black,
+            --filter-files,
+          ]
+        # files: "src/.*"

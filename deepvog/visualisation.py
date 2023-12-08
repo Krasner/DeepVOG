@@ -1,6 +1,9 @@
-from skimage.draw import ellipse_perimeter, line, circle_perimeter, line_aa
-import skvideo.io as skv
+import os
+import tempfile
+
 import numpy as np
+import skvideo.io as skv
+from skimage.draw import circle_perimeter, ellipse_perimeter, line, line_aa
 
 
 def draw_line(output_frame, frame_shape, o, l, color=[255, 0, 0]):
@@ -25,7 +28,12 @@ def draw_line(output_frame, frame_shape, o, l, color=[255, 0, 0]):
         Frame with the ellipse drawn.
     """
     R, G, B = color
-    rr, cc = line(int(np.round(o[0])), int(np.round(o[1])), int(np.round(o[0] + l[0])), int(np.round(o[1] + l[1])))
+    rr, cc = line(
+        int(np.round(o[0])),
+        int(np.round(o[1])),
+        int(np.round(o[0] + l[0])),
+        int(np.round(o[1] + l[1])),
+    )
     rr[rr > int(frame_shape[1]) - 1] = frame_shape[1] - 1
     cc[cc > int(frame_shape[0]) - 1] = frame_shape[0] - 1
     rr[rr < 0] = 0
@@ -109,7 +117,11 @@ class VideoManager:
         # Parameters
         self.vreader = vreader
         self.heatmap = heatmap
-        self.output_video_flag = True if output_video_path else False
+        self.output_video_flag = True  # if output_video_path else False
+        if output_video_path == "" or output_video_path is None:
+            output_video_path = os.path.join(tempfile.gettempdir(), "temp.mp4")
+
+        self.output_video_path = output_video_path
         self.output_record_flag = True if output_record_path else False
         self.vwriter = skv.FFmpegWriter(output_video_path) if self.output_video_flag else None
         self.results_recorder = open(output_record_path, "w") if self.output_record_flag else None
@@ -120,22 +132,30 @@ class VideoManager:
     def write_frame_with_condition(self, vid_frame, pred_each):
 
         if self.heatmap:
-            heatmap_frame = np.zeros((pred_each.shape[0], pred_each.shape[1], 3))  # Shape = (w, h, 3)
+            heatmap_frame = np.zeros(
+                (pred_each.shape[0], pred_each.shape[1], 3)
+            )  # Shape = (w, h, 3)
             heatmap_frame[:, :, :] = np.around(
-                pred_each.reshape(pred_each.shape[0], pred_each.shape[1], 1) * 255).astype(int)
+                pred_each.reshape(pred_each.shape[0], pred_each.shape[1], 1) * 255
+            ).astype(int)
             output_frame = np.concatenate((vid_frame, heatmap_frame), axis=1)
             self.vwriter.writeFrame(output_frame)
         else:
             self.vwriter.writeFrame(vid_frame)
 
-    def write_results(self, frame_id, pupil2D_x, pupil2D_y, gaze_x, gaze_y, confidence, consistence):
-        self.results_recorder.write("%d,%f,%f,%f,%f,%f,%f\n" % (frame_id, pupil2D_x, pupil2D_y,
-                                                                gaze_x, gaze_y,
-                                                                confidence, consistence))
+    def write_results(
+        self, frame_id, pupil2D_x, pupil2D_y, gaze_x, gaze_y, confidence, consistence
+    ):
+        self.results_recorder.write(
+            "%d,%f,%f,%f,%f,%f,%f\n"
+            % (frame_id, pupil2D_x, pupil2D_y, gaze_x, gaze_y, confidence, consistence)
+        )
 
     def _initialize_results_recorder(self):
         if self.output_record_flag:
-            self.results_recorder.write("frame,pupil2D_x,pupil2D_y,gaze_x,gaze_y,confidence,consistence\n")
+            self.results_recorder.write(
+                "frame,pupil2D_x,pupil2D_y,gaze_x,gaze_y,confidence,consistence\n"
+            )
 
     def __del__(self):
         self.vreader.close()

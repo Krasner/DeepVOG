@@ -1,11 +1,11 @@
 # DeepVOG
-<p align="center"> 
+<p align="center">
 <img width="320" height="240" src="ellipsoids.png">
 </p>
 DeepVOG is a framework for pupil segmentation and gaze estimation based on a fully convolutional neural network. Currently it is available for offline gaze estimation of eye-tracking video clips.
 
 ## Citation
-DeepVOG has been peer-reviewed and accepted as an original article in the Journal of Neuroscience Method (Elsevier). 
+DeepVOG has been peer-reviewed and accepted as an original article in the Journal of Neuroscience Method (Elsevier).
 The manuscript is available open access and can be downloaded free of charge [here](https://doi.org/10.1016/j.jneumeth.2019.05.016). If you use DeepVOG or some part of the code, please cite (see [bibtex](citations.bib)):
 
 Yiu YH, Aboulatta M, Raiser T, Ophey L, Flanagin VL, zu Eulenburg P, Ahmadi SA. DeepVOG: Open-source Pupil Segmentation and Gaze Estimation in Neuroscience using Deep Learning. Journal of neuroscience methods. vol. 324, 2019, DOI: https://doi.org/10.1016/j.jneumeth.2019.05.016
@@ -16,7 +16,7 @@ DeepVOG v1.1.4 (Date: 31-07-2019, latest)
 
 **Improvements**:
 1. Added `--skip_existed` flag for skipping the operation in `--table` mode if the output file already exists
-2. Added `--skip_errors` flag for skipping the operation in `--table` mode and continue the next video if error is encountered. 
+2. Added `--skip_errors` flag for skipping the operation in `--table` mode and continue the next video if error is encountered.
 3. Added `--log_errors` flag for logging the errors and tracebacks in a file for `--table` mode, when error is encountered.
 4. Added `--no_gaze` flag for only pupil segmentation in `--infer` mode.
 5. One more column (`with_gaze`) to fill in the input csv file for `--table` mode. It enables/disable gaze estimation in `--table` mode.
@@ -76,8 +76,8 @@ $ nvidia-docker run -it --rm yyhhoi/deepvog:v1.1.4 bash
 Removal can be done by simply deleting the python package, for example:
 ```
 $ rm -r /usr/local/lib/python3.5/dist-packages/deepvog-1.1.2-py3.5.egg
-``` 
-The exact path will depend on where you store your installed python package, and the version of deepvog and python. 
+```
+The exact path will depend on where you store your installed python package, and the version of deepvog and python.
 
 
 ### Usage (Command-line interface)
@@ -105,7 +105,7 @@ import deepvog
 model = deepvog.load_DeepVOG()
 
 # Initialize the class. It requires information of your camera's focal length and sensor size, which should be available in product manual.
-inferer = deepvog.gaze_inferer(model, focal_length, video_shape, sensor_size) 
+inferer = deepvog.gaze_inferer(model, focal_length, video_shape, sensor_size)
 
 # Fit an eyeball model from "demo.mp4". The model will be stored as the "inferer" instance's attribute.
 inferer.process("demo.mp4", mode="Fit")
@@ -116,10 +116,10 @@ inferer.process("demo.mp4", mode="Infer", output_record_path="demo_results.csv")
 # Optional
 
 # You may also save the eyeball model to "demo_model.json" for subsequent gaze inference
-inferer.save_eyeball_model("demo_model.json") 
+inferer.save_eyeball_model("demo_model.json")
 
 # By loading the eyeball model, you don't need to fit the model again
-inferer.load_eyeball_model("demo_model.json") 
+inferer.load_eyeball_model("demo_model.json")
 
 ```
 
@@ -136,7 +136,7 @@ The -v argument draws the visualization of fitted ellipse and gaze vector to a d
 
 In the results, you should be able to see the visualization in the generated video "demo_visualization_inference.mp4", as shown below.
 
-<p align="center"> 
+<p align="center">
 <img width="640" height="240" src="demo/demo_result.png">
 </p>
 
@@ -150,9 +150,9 @@ $ python -m deepvog --table demo_table_mode.csv
 DeepVOG is intended for pupil segmentation and gaze estimation under the assumptions below:
 
 1. Video contains only single eye features (pupil, iris, eyebrows, eyelashes, eyelids...etc), for example the [demo video](demo). Videos with facial or body features may compromise its accuracy.
-2. DeepVOG was intended for eye video recorded by head-mounted camera. Hence, It assumes fixed relative position of the eye with respect to the camera.  
+2. DeepVOG was intended for eye video recorded by head-mounted camera. Hence, It assumes fixed relative position of the eye with respect to the camera.
 
-For more detailed discussion of the underlying assumptions of DeepVOG, please refer to the [paper](https://doi.org/10.1016/j.jneumeth.2019.05.016).  
+For more detailed discussion of the underlying assumptions of DeepVOG, please refer to the [paper](https://doi.org/10.1016/j.jneumeth.2019.05.016).
 
 ## Annotation tools
 See [annotation_tool/README.md](annotation_tool/README.md).

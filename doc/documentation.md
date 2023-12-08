@@ -14,14 +14,14 @@ Although the default camera intrinsic parameters are given, they vary largely ac
 - `-f` or `--flen`: Focal length of your camera in **mm**. Default: `6`.
 - `-g` or `--gpu`: GPU device number. Default: `0`.
 - `-vs` or `--vidshape`: Original and uncropped video shape of your camera output, height and width in **pixel**. Default: `(240,320)`.
-- `-s` or `--sensor`: Sensor size of your camera digital sensor, height and width in **mm**. Default: `(3.6,4.8)`. 
+- `-s` or `--sensor`: Sensor size of your camera digital sensor, height and width in **mm**. Default: `(3.6,4.8)`.
 - `-b` or `--batchsize`: Batch size of video frames for gaze inference. It is recommended to be at least 32. Default: `512`.
 - `-v` or `--visualize`: Path of the video you want to store your visualization. Default: `""` (no visualization to save). This function is not yet available with `--table` mode.
-- `-m` or `--heatmap`: Showing heatmap in the saved visualization video. This function is not yet available with `--table` mode. 
+- `-m` or `--heatmap`: Showing heatmap in the saved visualization video. This function is not yet available with `--table` mode.
 - `--skip_existed`: Flag for skipping the operation in `--table` mode if the output file already exists. No argument is accepted.
 - `--skip_errors`: Flag for skipping the operation in `--table` mode and continue the next video if error is encountered. No argument is accepted.
 - `--log_errors`: Path that stores your logged error messages when you skip the error by `--skip_errors` in `--table` mode.
-- `--no_gaze`: Flag for enabling only pupil segmentation in `infer` mode, without gaze estimation. In this mode, eyeball model path will be ignored (model fitting is not needed). Output result will not contain any gaze information but pupil centre coordinates. No argument is accepted. 
+- `--no_gaze`: Flag for enabling only pupil segmentation in `infer` mode, without gaze estimation. In this mode, eyeball model path will be ignored (model fitting is not needed). Output result will not contain any gaze information but pupil centre coordinates. No argument is accepted.
 
 ## Input/output format
 
@@ -39,11 +39,11 @@ With `--table` argument, you enter the "table" mode of DeepVOG, that you can bat
 
 1. Delimitor is comma. Leading/trailing spaces do not matter since they will be ignored.
 2. The column titles must follow the same order and texts as above, i.e. `operation`, `fit_vid`, `infer_vid`, `eyeball_model`, `result`.
-3. In the `operation` column, it contains three options `fit`, `infer` or `both`. 
+3. In the `operation` column, it contains three options `fit`, `infer` or `both`.
    * `fit`:  Fit eyeball model from the video specified in `fit_vid`, and save the model to the path specified in `eyeball_model`. Columns `infer_vid` and `result` will be ignored.
    * `infer`: Load the eyeball model from the path specified in `eyeball_model`, infer the gaze from the video specified in `infer_vid` and save the gaze estimation results to the path specified in `result`. Column `fit_vid` will be ignored.
    * `both`: First calling `fit` operation, then calling `infer`. Equivalent to having `fit` and `infer` operations separately in two rows.
-4. In the `with_gaze` column, you can input either `0` or `1` for `infer` operation. For `fit` operation, the value will be ignored. `1` means enabling gaze estimation, requiring fitting an eyeball model from the path in `eyeball_model` column. `0` means disabling gaze estimation and performing only pupil segmentations. Paths in `eyeball_model` column will be ignored. 
+4. In the `with_gaze` column, you can input either `0` or `1` for `infer` operation. For `fit` operation, the value will be ignored. `1` means enabling gaze estimation, requiring fitting an eyeball model from the path in `eyeball_model` column. `0` means disabling gaze estimation and performing only pupil segmentations. Paths in `eyeball_model` column will be ignored.
 
 ### Output results
 Gaze estimation result is saved in a .csv file, which contains the following information:

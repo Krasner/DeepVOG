@@ -1,13 +1,15 @@
-import numpy as np
 import os
 import warnings
+
+import numpy as np
 import skvideo.io as skv
 from skimage.color import rgb2gray
 from skimage.transform import resize
-from .unprojection import reproject
+
 from .eyefitter import SingleEyeFitter
-from .utils import save_json, load_json, convert_vec2angle31
-from .visualisation import draw_circle, draw_ellipse, draw_line, VideoManager
+from .unprojection import reproject
+from .utils import convert_vec2angle31, load_json, save_json
+from .visualisation import VideoManager, draw_circle, draw_ellipse, draw_line
 
 
 class gaze_inferer(object):
@@ -37,17 +39,33 @@ class gaze_inferer(object):
 
         # Parameters dealing with camera and video shape
         self.flen = flen
-        self.ori_video_shape, self.sensor_size = np.array(ori_video_shape).squeeze(), np.array(sensor_size).squeeze()
-        self.mm2px_scaling = np.linalg.norm(self.ori_video_shape) / np.linalg.norm(self.sensor_size)
+        self.ori_video_shape, self.sensor_size = (
+            np.array(ori_video_shape).squeeze(),
+            np.array(sensor_size).squeeze(),
+        )
+        self.mm2px_scaling = np.linalg.norm(self.ori_video_shape) / np.linalg.norm(
+            self.sensor_size
+        )
 
         self.model = model
         self.confidence_fitting_threshold = 0.96
-        self.eyefitter = SingleEyeFitter(focal_length=self.flen * self.mm2px_scaling,
-                                         pupil_radius=2 * self.mm2px_scaling,
-                                         initial_eye_z=50 * self.mm2px_scaling)
+        self.eyefitter = SingleEyeFitter(
+            focal_length=self.flen * self.mm2px_scaling,
+            pupil_radius=2 * self.mm2px_scaling,
+            initial_eye_z=50 * self.mm2px_scaling,
+        )
         self.infer_gaze_flag = infer_gaze_flag
-    def process(self, video_src, mode, output_record_path="", batch_size=32,
-                output_video_path="", heatmap=False, print_prefix=""):
+
+    def process(
+        self,
+        video_src,
+        mode,
+        output_record_path="",
+        batch_size=32,
+        output_video_path="",
+        heatmap=False,
+        print_prefix="",
+    ):
         """
 
         Parameters
@@ -76,11 +94,22 @@ class gaze_inferer(object):
 
         """
         # Get video information (path strings, frame reader, video's shapes...etc)
-        video_name_root, ext, vreader, vid_shapes, shape_correct, image_scaling_factor = self._get_video_info(video_src)
+        (
+            video_name_root,
+            ext,
+            vreader,
+            vid_shapes,
+            shape_correct,
+            image_scaling_factor,
+        ) = self._get_video_info(video_src)
         (vid_m, vid_w, vid_h, vid_channels) = vid_shapes
 
-        self.vid_manager = VideoManager(vreader=vreader, output_record_path=output_record_path,
-                                        output_video_path=output_video_path, heatmap=heatmap)
+        self.vid_manager = VideoManager(
+            vreader=vreader,
+            output_record_path=output_record_path,
+            output_video_path=output_video_path,
+            heatmap=heatmap,
+        )
 
         # (predict) Check if the eyeball model is imported
         if mode == "Infer":
@@ -100,7 +129,11 @@ class gaze_inferer(object):
         # Start looping for batch-wise processing
         for idx, frame in enumerate(vreader.nextFrame()):
 
-            print("\r%s%s %s (%d/%d)" % (print_prefix, mode, video_name_root + ext, idx + 1, vid_m), end="", flush=True)
+            print(
+                "\r%s%s %s (%d/%d)" % (print_prefix, mode, video_name_root + ext, idx + 1, vid_m),
+                end="",
+                flush=True,
+            )
 
             frame_preprocessed = self._preprocess_image(frame, shape_correct)
             mini_batch_idx = idx % batch_size
@@ -113,12 +146,11 @@ class gaze_inferer(object):
             elif (mini_batch_idx == 0) and (idx < final_batch_idx) or (idx == final_batch_idx):
                 Y_batch = self.model.predict(X_batch)
                 if mode == "Fit":
-                    self._fitting_batch(X_batch=X_batch,
-                                        Y_batch=Y_batch)
+                    self._fitting_batch(X_batch=X_batch, Y_batch=Y_batch)
                 elif mode == "Infer":
-                    _, _, _ = self._infer_batch(X_batch=X_batch,
-                                                Y_batch=Y_batch,
-                                                idx=idx - final_batch_size)
+                    _, _, _ = self._infer_batch(
+                        X_batch=X_batch, Y_batch=Y_batch, idx=idx - final_batch_size
+                    )
 
                 # Renew X_batch for next batch
                 X_batch = np.zeros((batch_size, 240, 320, 3))
@@ -133,21 +165,24 @@ class gaze_inferer(object):
                 X_batch_final[idx - final_batch_idx, :, :, :] = frame_preprocessed
                 Y_batch = self.model.predict(X_batch_final)
                 if mode == "Fit":
-                    self._fitting_batch(X_batch=X_batch_final,
-                                        Y_batch=Y_batch)
+                    self._fitting_batch(X_batch=X_batch_final, Y_batch=Y_batch)
                 elif mode == "Infer":
-                    _, _, _ = self._infer_batch(X_batch=X_batch_final,
-                                                Y_batch=Y_batch,
-                                                idx=idx - final_batch_size)
+                    _, _, _ = self._infer_batch(
+                        X_batch=X_batch_final, Y_batch=Y_batch, idx=idx - final_batch_size
+                    )
 
         if mode == "Fit":
             # Fit eyeball models. Parameters are stored as internal attributes of Eyefitter instance.
-            _ = self.eyefitter.fit_projected_eye_centre(ransac=True, max_iters=100, min_distance=10*vid_m)
+            _ = self.eyefitter.fit_projected_eye_centre(
+                ransac=True, max_iters=100, min_distance=10 * vid_m
+            )
             _, _ = self.eyefitter.estimate_eye_sphere()
 
             # Issue error if eyeball model still does not exist after fitting.
             if (self.eyefitter.eye_centre is None) or (self.eyefitter.aver_eye_radius is None):
-                raise TypeError("Eyeball model was not fitted. You may need -v or -m argument to check whether the pupil segmentation works properly.")
+                raise TypeError(
+                    "Eyeball model was not fitted. You may need -v or -m argument to check whether the pupil segmentation works properly."
+                )
         print()
 
     def save_eyeball_model(self, path):
@@ -159,11 +194,15 @@ class gaze_inferer(object):
         """
 
         if (self.eyefitter.eye_centre is None) or (self.eyefitter.aver_eye_radius is None):
-            print("3D eyeball model not found. You may need -v or -m argument to check whether the pupil segmentation works properly.")
+            print(
+                "3D eyeball model not found. You may need -v or -m argument to check whether the pupil segmentation works properly."
+            )
             raise
         else:
-            save_dict = {"eye_centre": self.eyefitter.eye_centre.tolist(),
-                         "aver_eye_radius": self.eyefitter.aver_eye_radius}
+            save_dict = {
+                "eye_centre": self.eyefitter.eye_centre.tolist(),
+                "aver_eye_radius": self.eyefitter.aver_eye_radius,
+            }
             save_json(path, save_dict)
 
     def load_eyeball_model(self, path):
@@ -180,7 +219,6 @@ class gaze_inferer(object):
         self.eyefitter.eye_centre = np.array(loaded_dict["eye_centre"])
         self.eyefitter.aver_eye_radius = loaded_dict["aver_eye_radius"]
 
-
     def _fitting_batch(self, X_batch, Y_batch):
 
         if self.vid_manager.output_video_flag:
@@ -195,11 +233,13 @@ class gaze_inferer(object):
 
             # If visualization is true, initialize output frame
             if self.vid_manager.output_video_flag:
-                vid_frame = video_frames_batch[batch_idx,]
+                vid_frame = video_frames_batch[
+                    batch_idx,
+                ]
 
             # Fit each observation to eyeball model
             if centre is not None:
-                if (ellipse_confidence > self.confidence_fitting_threshold):
+                if ellipse_confidence > self.confidence_fitting_threshold:
                     self.eyefitter.add_to_fitting()
 
                 # Draw ellipse and pupil centre on input video if visualization is enabled
@@ -207,17 +247,30 @@ class gaze_inferer(object):
                     ellipse_centre_np = np.array(centre)
 
                     # Draw pupil ellipse
-                    vid_frame = draw_ellipse(output_frame=vid_frame, frame_shape=vid_frame_shape_2d,
-                                             ellipse_info=ellipse_info, color=[255, 255, 0])
+                    vid_frame = draw_ellipse(
+                        output_frame=vid_frame,
+                        frame_shape=vid_frame_shape_2d,
+                        ellipse_info=ellipse_info,
+                        color=[255, 255, 0],
+                    )
                     # Draw small circle at the ellipse centre
-                    vid_frame = draw_circle(output_frame=vid_frame, frame_shape=vid_frame_shape_2d,
-                                            centre=ellipse_centre_np, radius=5, color=[0, 255, 0])
+                    vid_frame = draw_circle(
+                        output_frame=vid_frame,
+                        frame_shape=vid_frame_shape_2d,
+                        centre=ellipse_centre_np,
+                        radius=5,
+                        color=[0, 255, 0],
+                    )
 
-                    self.vid_manager.write_frame_with_condition(vid_frame=vid_frame, pred_each=pred_each)
+                    self.vid_manager.write_frame_with_condition(
+                        vid_frame=vid_frame, pred_each=pred_each
+                    )
             else:
                 # Draw original input frame when no ellipse is found
                 if self.vid_manager.output_video_flag:
-                    self.vid_manager.write_frame_with_condition(vid_frame=vid_frame, pred_each=pred_each)
+                    self.vid_manager.write_frame_with_condition(
+                        vid_frame=vid_frame, pred_each=pred_each
+                    )
 
     def _infer_batch(self, X_batch, Y_batch, idx):
 
@@ -234,7 +287,9 @@ class gaze_inferer(object):
             (rr, cc, centre, w, h, radian, ellipse_confidence) = ellipse_info
             # If visualization is true, initialize output frame for drawing
             if self.vid_manager.output_video_flag:
-                vid_frame = video_frames_batch[batch_idx,]
+                vid_frame = video_frames_batch[
+                    batch_idx,
+                ]
 
             # If ellipse fitting is successful, i.e. an ellipse is located, AND gaze inference is ENABLED
             if (centre is not None) and self.infer_gaze_flag:
@@ -242,54 +297,106 @@ class gaze_inferer(object):
                 p1, n1 = p_list[0], n_list[0]
                 px, py, pz = p1[0, 0], p1[1, 0], p1[2, 0]
                 x, y = convert_vec2angle31(n1)
-                positions = (px, py, pz, centre[0], centre[1])  # Pupil 3D positions and 2D projected positions
+                positions = (
+                    px,
+                    py,
+                    pz,
+                    centre[0],
+                    centre[1],
+                )  # Pupil 3D positions and 2D projected positions
                 gaze_angles = (x, y)  # horizontal and vertical gaze angles
                 inference_confidence = (ellipse_confidence, consistence)
-                self.vid_manager.write_results(frame_id=frame, pupil2D_x=centre[0], pupil2D_y=centre[1], gaze_x=x,
-                                               gaze_y=y, confidence=ellipse_confidence, consistence=consistence)
+                if self.vid_manager.output_record_flag:
+                    self.vid_manager.write_results(
+                        frame_id=frame,
+                        pupil2D_x=centre[0],
+                        pupil2D_y=centre[1],
+                        gaze_x=x,
+                        gaze_y=y,
+                        confidence=ellipse_confidence,
+                        consistence=consistence,
+                    )
 
                 if self.vid_manager.output_video_flag:
                     # # Code below is for drawing video
                     ellipse_centre_np = np.array(centre)
-                    projected_eye_centre = reproject(self.eyefitter.eye_centre,
-                                                     self.eyefitter.focal_length)  # shape (2,1)
+                    projected_eye_centre = reproject(
+                        self.eyefitter.eye_centre, self.eyefitter.focal_length
+                    )  # shape (2,1)
                     # The lines below are for translation from camera coordinate system (centred at image centre)
                     # to numpy's indexing frame. You substract the vector by the half of the video's 2D shape.
                     # Col = x-axis, Row = y-axis
                     projected_eye_centre += np.array(vid_frame_shape_2d[::-1]).reshape(-1, 1) / 2
 
-                    vid_frame = self._draw_vis_on_frame(vid_frame, vid_frame_shape_2d, ellipse_info, ellipse_centre_np,
-                                                        projected_eye_centre, gaze_vec=n1)
+                    vid_frame = self._draw_vis_on_frame(
+                        vid_frame,
+                        vid_frame_shape_2d,
+                        ellipse_info,
+                        ellipse_centre_np,
+                        projected_eye_centre,
+                        gaze_vec=n1,
+                    )
 
-                    self.vid_manager.write_frame_with_condition(vid_frame=vid_frame, pred_each=pred_each)
+                    self.vid_manager.write_frame_with_condition(
+                        vid_frame=vid_frame, pred_each=pred_each
+                    )
 
             # If ellipse fitting is successful, i.e. an ellipse is located, AND gaze inference is DISABLED
             elif (centre is not None) and (not self.infer_gaze_flag):
                 positions, gaze_angles, inference_confidence = None, None, None
-                self.vid_manager.write_results(frame_id=frame, pupil2D_x=centre[0], pupil2D_y=centre[1], gaze_x=np.nan,
-                                               gaze_y=np.nan, confidence=ellipse_confidence, consistence=np.nan)
+                if self.vid_manager.output_record_flag:
+                    self.vid_manager.write_results(
+                        frame_id=frame,
+                        pupil2D_x=centre[0],
+                        pupil2D_y=centre[1],
+                        gaze_x=np.nan,
+                        gaze_y=np.nan,
+                        confidence=ellipse_confidence,
+                        consistence=np.nan,
+                    )
                 if self.vid_manager.output_video_flag:
                     ellipse_centre_np = np.array(centre)
 
                     # Draw pupil ellipse
-                    vid_frame = draw_ellipse(output_frame=vid_frame, frame_shape=vid_frame_shape_2d,
-                                             ellipse_info=ellipse_info, color=[255, 255, 0])
+                    vid_frame = draw_ellipse(
+                        output_frame=vid_frame,
+                        frame_shape=vid_frame_shape_2d,
+                        ellipse_info=ellipse_info,
+                        color=[255, 255, 0],
+                    )
                     # Draw small circle at the ellipse centre
-                    vid_frame = draw_circle(output_frame=vid_frame, frame_shape=vid_frame_shape_2d,
-                                            centre=ellipse_centre_np, radius=5, color=[0, 255, 0])
-                    self.vid_manager.write_frame_with_condition(vid_frame=vid_frame, pred_each=pred_each)
+                    vid_frame = draw_circle(
+                        output_frame=vid_frame,
+                        frame_shape=vid_frame_shape_2d,
+                        centre=ellipse_centre_np,
+                        radius=5,
+                        color=[0, 255, 0],
+                    )
+                    self.vid_manager.write_frame_with_condition(
+                        vid_frame=vid_frame, pred_each=pred_each
+                    )
 
             # IF ellipse fitting is unsuccessful.
             else:
                 # If ellipse cannot be found, fill the outputs with None's
                 positions, gaze_angles, inference_confidence = None, None, None
 
-                self.vid_manager.write_results(frame_id=frame, pupil2D_x=np.nan, pupil2D_y=np.nan, gaze_x=np.nan,
-                                               gaze_y=np.nan, confidence=np.nan, consistence=np.nan)
+                if self.vid_manager.output_record_flag:
+                    self.vid_manager.write_results(
+                        frame_id=frame,
+                        pupil2D_x=np.nan,
+                        pupil2D_y=np.nan,
+                        gaze_x=np.nan,
+                        gaze_y=np.nan,
+                        confidence=np.nan,
+                        consistence=np.nan,
+                    )
 
                 # Draw original input frame when no ellipse is found
                 if self.vid_manager.output_video_flag:
-                    self.vid_manager.write_frame_with_condition(vid_frame=vid_frame, pred_each=pred_each)
+                    self.vid_manager.write_frame_with_condition(
+                        vid_frame=vid_frame, pred_each=pred_each
+                    )
 
         return positions, gaze_angles, inference_confidence
 
@@ -300,7 +407,14 @@ class gaze_inferer(object):
         m, w, h, channels = vreader.getShape()
         image_scaling_factor = np.linalg.norm((240, 320)) / np.linalg.norm((h, w))
         shape_correct = self._inspectVideoShape(w, h)
-        return video_name_root, ext, vreader, (m, w, h, channels), shape_correct, image_scaling_factor
+        return (
+            video_name_root,
+            ext,
+            vreader,
+            (m, w, h, channels),
+            shape_correct,
+            image_scaling_factor,
+        )
 
     def _check_eyeball_model_exists(self):
         try:
@@ -312,7 +426,8 @@ class gaze_inferer(object):
                 pass
         except AssertionError as e:
             print(
-                "3D eyeball mode is not found. Gaze inference cannot continue. Please fit/load an eyeball model first")
+                "3D eyeball mode is not found. Gaze inference cannot continue. Please fit/load an eyeball model first"
+            )
             raise e
 
     @staticmethod
@@ -325,7 +440,7 @@ class gaze_inferer(object):
     @staticmethod
     def _computeCroppedShape(ori_video_shape, crop_size):
         video = np.zeros(ori_video_shape)
-        cropped = video[crop_size[0]:crop_size[1], crop_size[2], crop_size[3]]
+        cropped = video[crop_size[0] : crop_size[1], crop_size[2], crop_size[3]]
         return cropped.shape
 
     @staticmethod
@@ -346,23 +461,48 @@ class gaze_inferer(object):
         return output_img
 
     @staticmethod
-    def _draw_vis_on_frame(vid_frame, vid_frame_shape_2d, ellipse_info, ellipse_centre_np, projected_eye_centre,
-                           gaze_vec):
+    def _draw_vis_on_frame(
+        vid_frame,
+        vid_frame_shape_2d,
+        ellipse_info,
+        ellipse_centre_np,
+        projected_eye_centre,
+        gaze_vec,
+    ):
 
         # Draw pupil ellipse
-        vid_frame = draw_ellipse(output_frame=vid_frame, frame_shape=vid_frame_shape_2d,
-                                 ellipse_info=ellipse_info, color=[255, 255, 0])
+        vid_frame = draw_ellipse(
+            output_frame=vid_frame,
+            frame_shape=vid_frame_shape_2d,
+            ellipse_info=ellipse_info,
+            color=[255, 255, 0],
+        )
 
         # Draw from eyeball centre to ellipse centre (just connecting two points)
         vec_with_length = ellipse_centre_np - projected_eye_centre.squeeze()
-        vid_frame = draw_line(output_frame=vid_frame, frame_shape=vid_frame_shape_2d, o=projected_eye_centre,
-                              l=vec_with_length, color=[0, 0, 255])
+        vid_frame = draw_line(
+            output_frame=vid_frame,
+            frame_shape=vid_frame_shape_2d,
+            o=projected_eye_centre,
+            l=vec_with_length,
+            color=[0, 0, 255],
+        )
 
         # Draw gaze vector originated from ellipse centre
-        vid_frame = draw_line(output_frame=vid_frame, frame_shape=vid_frame_shape_2d, o=ellipse_centre_np,
-                              l=gaze_vec * 50, color=[255, 0, 0])
+        vid_frame = draw_line(
+            output_frame=vid_frame,
+            frame_shape=vid_frame_shape_2d,
+            o=ellipse_centre_np,
+            l=gaze_vec * 50,
+            color=[255, 0, 0],
+        )
 
         # Draw small circle at the ellipse centre
-        vid_frame = draw_circle(output_frame=vid_frame, frame_shape=vid_frame_shape_2d,
-                                centre=ellipse_centre_np, radius=5, color=[0, 255, 0])
+        vid_frame = draw_circle(
+            output_frame=vid_frame,
+            frame_shape=vid_frame_shape_2d,
+            centre=ellipse_centre_np,
+            radius=5,
+            color=[0, 255, 0],
+        )
         return vid_frame

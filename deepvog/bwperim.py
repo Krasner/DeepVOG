@@ -4,23 +4,24 @@
 # Ported to python by Luis Pedro Coelho <luis@luispedro.org> (February 2008)
 # Copyright (C) 2006       Soren Hauberg
 # Copyright (C) 2008-2010  Luis Pedro Coelho (Python port)
-# 
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2, or (at your option)
 # any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
 # WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-# General Public License for more details. 
-# 
+# General Public License for more details.
+#
 # You should have received a copy of the GNU General Public License
 # along with this file.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
 
-__all__ = ['bwperim']
+__all__ = ["bwperim"]
+
 
 def bwperim(bw, n=4):
     """
@@ -39,35 +40,29 @@ def bwperim(bw, n=4):
       perim : A boolean image
     """
 
-    if n not in (4,8):
-        raise ValueError('mahotas.bwperim: n must be 4 or 8')
-    rows,cols = bw.shape
+    if n not in (4, 8):
+        raise ValueError("mahotas.bwperim: n must be 4 or 8")
+    rows, cols = bw.shape
 
     # Translate image by one pixel in all directions
-    north = np.zeros((rows,cols))
-    south = np.zeros((rows,cols))
-    west = np.zeros((rows,cols))
-    east = np.zeros((rows,cols))
+    north = np.zeros((rows, cols))
+    south = np.zeros((rows, cols))
+    west = np.zeros((rows, cols))
+    east = np.zeros((rows, cols))
 
-    north[:-1,:] = bw[1:,:]
-    south[1:,:]  = bw[:-1,:]
-    west[:,:-1]  = bw[:,1:]
-    east[:,1:]   = bw[:,:-1]
-    idx = (north == bw) & \
-          (south == bw) & \
-          (west  == bw) & \
-          (east  == bw)
+    north[:-1, :] = bw[1:, :]
+    south[1:, :] = bw[:-1, :]
+    west[:, :-1] = bw[:, 1:]
+    east[:, 1:] = bw[:, :-1]
+    idx = (north == bw) & (south == bw) & (west == bw) & (east == bw)
     if n == 8:
         north_east = np.zeros((rows, cols))
         north_west = np.zeros((rows, cols))
         south_east = np.zeros((rows, cols))
         south_west = np.zeros((rows, cols))
-        north_east[:-1, 1:]   = bw[1:, :-1]
+        north_east[:-1, 1:] = bw[1:, :-1]
         north_west[:-1, :-1] = bw[1:, 1:]
-        south_east[1:, 1:]     = bw[:-1, :-1]
-        south_west[1:, :-1]   = bw[:-1, 1:]
-        idx &= (north_east == bw) & \
-               (south_east == bw) & \
-               (south_west == bw) & \
-               (north_west == bw)
+        south_east[1:, 1:] = bw[:-1, :-1]
+        south_west[1:, :-1] = bw[:-1, 1:]
+        idx &= (north_east == bw) & (south_east == bw) & (south_west == bw) & (north_west == bw)
     return ~idx * bw
