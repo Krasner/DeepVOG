@@ -1,0 +1,5 @@
+numpy
+scikit-image
+git+https://github.com/scikit-video/scikit-video.git@master
+tensorflow
+matplotlib

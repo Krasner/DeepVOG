@@ -37,7 +37,7 @@ def decoding_block(X, filter_size, filters_num, layer_num, block_type, stage, s 
     
 
     # Joining X_jump from encoding side with X_uped
-    if X_jump == 0:
+    if isinstance(X_jump, int): # == 0:
         X_joined_input = X
     else:
     # X_joined_input = Add()([X,X_jump])
