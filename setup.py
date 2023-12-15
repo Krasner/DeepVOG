@@ -33,7 +33,7 @@ setuptools.setup(
         "tensorflow>=2.13.0",
         "opencv-python",
         "matplotlib",
-        "git+https://github.com/scikit-video/scikit-video.git@master",
+        "scikit-video @ git+https://github.com/scikit-video/scikit-video.git@master",
         "tqdm",
     ],
 )
